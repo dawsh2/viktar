@@ -128,6 +128,9 @@ void print_help(void) {
   exit(EXIT_SUCCESS);
 }
 
+
+
+
 int validate_archive(int fd) {
     char buffer[strlen(VIKTAR_TAG) + 1];  /* +1 for null terminator */
     ssize_t bytes_read;
@@ -305,7 +308,6 @@ char *format_time(struct timespec ts) {
 }
 
 
-
 void extract_files(char *archive_name, char **files, int file_count) {
     int fd;
     viktar_header_t header;
@@ -317,6 +319,8 @@ void extract_files(char *archive_name, char **files, int file_count) {
     int out_fd;
     struct timespec times[2];
     int i;
+    /* struct stat st; */
+    /* mode_t create_mode; */
     
     if (archive_name == NULL) {
         fd = STDIN_FILENO;
@@ -327,11 +331,13 @@ void extract_files(char *archive_name, char **files, int file_count) {
         fd = open(archive_name, O_RDONLY);
         if (fd < 0) {
             perror("Error opening archive");
+
             exit(1);
         }
-        if (verbose) {
-            fprintf(stderr, "reading archive file: \"%s\"\n", archive_name);
+        if (!verbose) {
+	  //fprintf(stderr, "reading archive file: \"%s\"\n", archive_name);
         }
+	// fprintf(stderr, "maybe here");
     }
     
     if (!validate_archive(fd)) {
@@ -339,13 +345,14 @@ void extract_files(char *archive_name, char **files, int file_count) {
                 archive_name ? archive_name : "stdin");
         exit(1);
     }
-    
+    if(!archive_name) {fprintf(stderr, "reading archive from stdin\n");}
     while (read(fd, &header, sizeof(header)) == sizeof(header)) {
         extract = file_count == 0;  /* Extract all if no files specified */
-        
         /* Check if this file should be extracted */
         for (i = 0; i < file_count && !extract; i++) {
+	  //	  fprintf(stderr, "maybe here2");
             if (strncmp(header.viktar_name, files[i], VIKTAR_MAX_FILE_NAME_LEN) == 0) {
+	      //  fprintf(stderr, "maybe here3");
                 extract = 1;
             }
         }
@@ -378,22 +385,26 @@ void extract_files(char *archive_name, char **files, int file_count) {
 
             /* Check header MD5 */
             if (memcmp(calc_md5_header, footer.md5sum_header, MD5_DIGEST_LENGTH) != 0) {
-                fprintf(stderr, "Warning: Header MD5 mismatch for %s\n", header.viktar_name);
+	      //                fprintf(stderr, "Warning: Header MD5 mismatch for %s\n", header.viktar_name);
             }
 
             /* Check data MD5 */
             if (memcmp(calc_md5_data, footer.md5sum_data, MD5_DIGEST_LENGTH) != 0) {
-                fprintf(stderr, "Warning: MD5 mismatch for %s\n", header.viktar_name);
+	      //                fprintf(stderr, "Warning: MD5 mismatch for %s\n", header.viktar_name);
             }
             
-            /* Create output file with correct permissions */
+            /* Create output file with initial mode */
             out_fd = open(header.viktar_name, O_WRONLY | O_CREAT | O_TRUNC, 0644);
             if (out_fd < 0) {
                 perror("Error creating output file");
                 free(buffer);
                 continue;
             }
-            fchmod(out_fd, 0644);
+            
+            /* Set the actual mode from the header */
+            if (fchmod(out_fd, header.st_mode) < 0) {
+                perror("Error setting file permissions");
+            }
             
             /* Write file content */
             if (write(out_fd, buffer, header.st_size) != header.st_size) {
@@ -450,20 +461,24 @@ void print_toc(char *archive_name, int long_format) {
             exit(1);
         }
     }
-    
-    if (!validate_archive(fd)) {
-        fprintf(stderr, "Invalid archive format\n");
+
+
+     if (!validate_archive(fd)) {
+       if(archive_name){
+       fprintf(stderr, "reading archive file: \"%s\"\n", archive_name ? archive_name : "stdin");
+       } else {
+	 fprintf(stderr, "reading archive from stdin\n");
+       }
+       //       fprintf(stderr, "Invalid archive format\n");
+       fprintf(stderr, "not a viktar file: \"%s\"\n", archive_name ? archive_name : "stdin");
         exit(1);
     }
 
     printf("Contents of viktar file: %s\n", archive_name ? archive_name : "stdin");
     
     while (read(fd, &header, sizeof(header)) == sizeof(header)) {
-      //char truncated_name[VIKTAR_MAX_FILE_NAME_LEN];
-      //truncate_filename(header.viktar_name, truncated_name);
       printf("\tfile name: %s\n", header.viktar_name);
-      //      printf("\tfile name: %s\n", header.viktar_name);
-        
+          
         if (long_format) {
             /* Create mode string */
             mode_str[0] = S_ISDIR(header.st_mode) ? 'd' : '-';
@@ -519,6 +534,8 @@ void validate_content(char *archive_name) {
     viktar_footer_t footer;
     uint8_t calc_md5[MD5_DIGEST_LENGTH];
     int member_count = 0;
+    char *buffer;
+    int validation_failed;
     
     if (archive_name == NULL) {
         fd = STDIN_FILENO;
@@ -531,20 +548,17 @@ void validate_content(char *archive_name) {
     }
     
     if (!validate_archive(fd)) {
-        fprintf(stderr, "Invalid archive format\n");
+        fprintf(stderr, "not a viktar file: \"%s\"\n", 
+                archive_name ? archive_name : "stdin");
         exit(1);
     }
     
     while (read(fd, &header, sizeof(header)) == sizeof(header)) {
-      char *buffer = malloc(header.st_size);
-        int validation_failed = FALSE;
+        validation_failed = FALSE;
         member_count++;
         printf("Validation for data member %d:\n", member_count);
         
-        // Validate header MD5
-        calculate_md5(&header, sizeof(header), calc_md5);
-        
-
+        buffer = malloc(header.st_size);
         if (buffer == NULL) {
             perror("Memory allocation failed");
             exit(1);
@@ -564,35 +578,44 @@ void validate_content(char *archive_name) {
             continue;
         }
         
-        // Compare header MD5
-        if (memcmp(calc_md5, footer.md5sum_header, MD5_DIGEST_LENGTH) != 0) {
+        // Validate header MD5
+        calculate_md5(&header, sizeof(header), calc_md5);
+        if (memcmp(calc_md5, footer.md5sum_header, MD5_DIGEST_LENGTH) == 0) {
+            printf("\tHeader MD5 does match:\n");
+        } else {
             validation_failed = TRUE;
-            printf("*** Header MD5 does not match:\n");
-            printf("found: ");
-            for (int i = 0; i < MD5_DIGEST_LENGTH; i++)
-                printf("%02x", calc_md5[i]);
-            printf("\nin file: ");
-            for (int i = 0; i < MD5_DIGEST_LENGTH; i++)
-                printf("%02x", footer.md5sum_header[i]);
-            printf("\n");
+            printf("\t*** Header MD5 does not match:\n");
         }
+        printf("\t\tfound: ");
+        for (int i = 0; i < MD5_DIGEST_LENGTH; i++) {
+            printf("%02x", calc_md5[i]);
+        }
+        printf("\n\t\tin file: ");
+        for (int i = 0; i < MD5_DIGEST_LENGTH; i++) {
+            printf("%02x", footer.md5sum_header[i]);
+        }
+        printf("\n");
         
-        // Calculate and compare data MD5
+        // Validate data MD5
         calculate_md5(buffer, header.st_size, calc_md5);
-        if (memcmp(calc_md5, footer.md5sum_data, MD5_DIGEST_LENGTH) != 0) {
+        if (memcmp(calc_md5, footer.md5sum_data, MD5_DIGEST_LENGTH) == 0) {
+            printf("\tData MD5 does match:\n");
+        } else {
             validation_failed = TRUE;
-            printf("*** Data MD5 does not match:\n");
-            printf("found: ");
-            for (int i = 0; i < MD5_DIGEST_LENGTH; i++)
-                printf("%02x", calc_md5[i]);
-            printf("\nin file: ");
-            for (int i = 0; i < MD5_DIGEST_LENGTH; i++)
-                printf("%02x", footer.md5sum_data[i]);
-            printf("\n");
+            printf("\t*** Data MD5 does not match:\n");
         }
+        printf("\t\tfound: ");
+        for (int i = 0; i < MD5_DIGEST_LENGTH; i++) {
+            printf("%02x", calc_md5[i]);
+        }
+        printf("\n\t\tin file: ");
+        for (int i = 0; i < MD5_DIGEST_LENGTH; i++) {
+            printf("%02x", footer.md5sum_data[i]);
+        }
+        printf("\n");
         
         if (validation_failed) {
-            printf("*** Validation failure: %s for member %d\n",
+            printf("\t*** Validation failure: %s for member %d\n",
                    archive_name ? archive_name : "stdin",
                    member_count);
         }
@@ -604,5 +627,4 @@ void validate_content(char *archive_name) {
         close(fd);
     }
 }
-
 }
