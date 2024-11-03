@@ -1,0 +1,114 @@
+Testing with over-long file name ...
+>>> FAILED long name file, 1 member
+>>> Fix this before trying more tests
+failed to open file "Ç2-s.txt"
+exiting...
+Testing with BIG archive file ...
+>>> FAILED big archive with *.{txt,bin}
+>>> Fix this before trying more tests
+Testing extract from archive file text files...
+Warning: Header MD5 mismatch for Ç2-s.txt
+Warning: MD5 mismatch for Ç2-s.txt
+Warning: Header MD5 mismatch for ¤
+Warning: MD5 mismatch for ¤
+Error setting file times: Invalid argument
+Memory allocation failed: Cannot allocate memory
+	*** Header MD5 does not match:
+		found:   b2238efa75b77e57b1df63e5437204eb
+		in file: 5bb3a3633f88d134dc1f8899d2ffd35e for member Ç2-s.txt
+	*** Data MD5 does not match:
+		found:   d41d8cd98f00b204e9800998ecf8427e
+		in file: 4c5fccc41dde796447be2e5129ebddc7 for member Ç2-s.txt
+ls: ''$'\307''2-s.txt': Permission denied
+>>> FAILED extract with text files
+>>> Fix this before trying more tests
+>>> 
+      try this: diff -w -y testX01_J.sout testX01_S.sout
+Testing bad viktar file tag...
+	bad tag test 1.1 is good 
+	POINTS=165
+>>> FAILED bad tag in archive file
+>>> 
+Your output:
+Invalid archive format
+Jesse output:
+reading archive file: "goodTest1.viktar"
+not a viktar file: "goodTest1.viktar"
+>>> Continuing - missing 5 points
+	bad tag test 1.3 is good
+	POINTS=175
+	bad tag test 2.1 is good 
+	POINTS=185
+>>> FAILED bad tag in archive file
+>>> 
+Your output:
+Invalid archive format
+Jesse output:
+reading archive from stdin
+not a viktar file: "stdin"
+>>> Continuing - missing 5 points
+	bad tag test 2.3 is good
+	POINTS=195
+** Done with Testing bad viktar file tag.
+*** Points so far 195 of 365
+Testing bad md5...
+	Nice... Exit value from bad md5 is 0
+>>> FAILED bad md5 in archive file 1
+>>> 
+Your output:
+Warning: MD5 mismatch for 3-s.txt
+Warning: MD5 mismatch for 4-s.txt
+Warning: MD5 mismatch for 5-s.txt
+Warning: MD5 mismatch for 6-s.txt
+Jesse output:
+>>> Continuing - missing 10 points
+	bad md5 test 1.2 is good
+	POINTS=215
+	Nice... Exit value from bad md5 is 0
+>>> FAILED bad md5 in archive file 2
+>>> 
+Your output:
+Warning: Header MD5 mismatch for 3-s.txt
+Warning: Header MD5 mismatch for 4-s.txt
+Warning: Header MD5 mismatch for 5-s.txt
+Warning: Header MD5 mismatch for 6-s.txt
+Jesse output:
+reading archive from stdin
+>>> Continuing - missing 10 points
+	bad md5 test 2.2 is good
+	POINTS=235
+** Done with Testing bad viktar md5 value.
+*** Points so far 235 of 365
+Testing with Validate...
+>>> Validate fails on goodTest2.viktar
+  try: diff -w -y validate01_J.out validate01_S.out
+>>> Validate fails on goodTest3.viktar
+  try: diff -w -y validate02_J.out validate02_S.out
+>>> Validate fails on corruptTest4.viktar
+  try: diff -w -y validate03_J.out validate03_S.out
+	Validate checks out on corruptTest8.viktar
+** Done with Testing Validate.
+*** Points so far 240 of 365
+Testing with valgrind for memory leaks...
+	No leaks found in archive create. Excellent.
+	No leaks found in archive extract. Excellent.
+	No leaks found in small TOC. Excellent.
+	No leaks found in big TOC. Excellent.
+	No leaks found in Validate. Excellent.
+** Done with Testing valgrind.
+*** Points so far 240 of 365
+
+
+*********************************************************
+*********************************************************
+Done with Testing.
+Points so far 240 of 365
+This does not include the points from the Makefile-test.bash script
+This does not take into account any late penalty that may apply.
+
+
+Test begun at     Sat Nov  2 05:23:55 PM PDT 2024
+Test completed at Sat Nov  2 05:24:22 PM PDT 2024
+
+
++++ TOTAL_POINTS    = 240 of 365 ***
